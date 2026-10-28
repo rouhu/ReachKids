@@ -17,10 +17,15 @@ import java.util.List;
 public final class MessageContactsActivity extends Activity {
     private ContactsRepository contactsRepository;
     private LinearLayout contactsContainer;
+    private ParentPreferences parentPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        parentPreferences = new ParentPreferences(this);
+        if (finishIfMessagesDisabled()) {
+            return;
+        }
         contactsRepository = new ContactsRepository(this);
         showPicker();
     }
@@ -28,6 +33,9 @@ public final class MessageContactsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (finishIfMessagesDisabled()) {
+            return;
+        }
         if (contactsContainer != null) {
             loadContacts();
         }
@@ -92,6 +100,14 @@ public final class MessageContactsActivity extends Activity {
     private boolean hasContactsPermission() {
         return android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M
                 || checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean finishIfMessagesDisabled() {
+        if (parentPreferences != null && parentPreferences.areMessagesDisabled()) {
+            finish();
+            return true;
+        }
+        return false;
     }
 
     private void showMessage(String message) {

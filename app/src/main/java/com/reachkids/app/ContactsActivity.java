@@ -154,6 +154,26 @@ public final class ContactsActivity extends Activity {
         configureRingerMutedCheckBox(ringerMutedCheckBox);
         root.addView(ringerMutedCheckBox, fullWidthParams(0, dp(10)));
 
+        CheckBox disableCallingCheckBox = new CheckBox(this);
+        disableCallingCheckBox.setText("Disable Calling");
+        disableCallingCheckBox.setChecked(preferences.isCallingDisabled());
+        disableCallingCheckBox.setOnCheckedChangeListener((buttonView, checked) -> {
+            preferences.setCallingDisabled(checked);
+            ParentSession.touch();
+            showToast(checked ? "Calling disabled on the child home." : "Calling enabled on the child home.");
+        });
+        root.addView(disableCallingCheckBox, fullWidthParams(0, dp(10)));
+
+        CheckBox disableMessagesCheckBox = new CheckBox(this);
+        disableMessagesCheckBox.setText("Disable messages");
+        disableMessagesCheckBox.setChecked(preferences.areMessagesDisabled());
+        disableMessagesCheckBox.setOnCheckedChangeListener((buttonView, checked) -> {
+            preferences.setMessagesDisabled(checked);
+            ParentSession.touch();
+            showToast(checked ? "Messages disabled on the child home." : "Messages enabled on the child home.");
+        });
+        root.addView(disableMessagesCheckBox, fullWidthParams(0, dp(10)));
+
         contactsContainer = new LinearLayout(this);
         contactsContainer.setOrientation(LinearLayout.VERTICAL);
         root.addView(contactsContainer, fullWidthParams(0, dp(8)));

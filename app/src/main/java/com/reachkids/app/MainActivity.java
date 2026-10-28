@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -17,6 +19,10 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,8 +35,17 @@ public final class MainActivity extends Activity {
     private LinearLayout content;
     private ContactsRepository contactsRepository;
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
+    private final Handler clockHandler = new Handler(Looper.getMainLooper());
+    private final Runnable clockUpdater = new Runnable() {
+        @Override
+        public void run() {
+            updateClock();
+            clockHandler.postDelayed(this, 1000L);
+        }
+    };
     private long pendingQuickCallPhoneDataId = -1L;
     private boolean childHomeVisible;
+    private TextView clockView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +53,11 @@ public final class MainActivity extends Activity {
         parentPreferences = new ParentPreferences(this);
         devicePolicyController = new DevicePolicyController(this);
         contactsRepository = new ContactsRepository(this);
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
+            if (childHomeVisible && parentPreferences.isKioskEnabled()) {
+                hideSystemBarsForChildHome();
+            }
+        });
         showCurrentScreen();
     }
 
@@ -47,9 +67,18 @@ public final class MainActivity extends Activity {
         if (parentPreferences != null && parentPreferences.hasPin()) {
             if (!childHomeVisible) {
                 showChildHome();
+            } else {
+                startClockUpdates();
             }
             enterKioskIfConfigured();
+            hideSystemBarsForChildHome();
         }
+    }
+
+    @Override
+    protected void onPause() {
+        stopClockUpdates();
+        super.onPause();
     }
 
     private void showCurrentScreen() {
@@ -61,6 +90,8 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout createScreen(String title, String description) {
+        stopClockUpdates();
+        clockView = null;
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -69,18 +100,31 @@ public final class MainActivity extends Activity {
         content.setPadding(padding, padding, padding, padding);
 
         if ("Reach Kids".equals(title)) {
+            LinearLayout headerRow = new LinearLayout(this);
+            headerRow.setGravity(Gravity.CENTER_VERTICAL);
             LinearLayout titleRow = new LinearLayout(this);
             titleRow.setGravity(Gravity.CENTER_VERTICAL);
             ImageView logo = new ImageView(this);
             logo.setImageResource(R.drawable.ic_reach_kids_logo);
-            titleRow.addView(logo, new LinearLayout.LayoutParams(dp(58), dp(58)));
+            titleRow.addView(logo, new LinearLayout.LayoutParams(dp(44), dp(44)));
             TextView titleView = new TextView(this);
             titleView.setText(title);
-            titleView.setTextSize(30);
+            titleView.setTextSize(22);
             titleView.setTextColor(getResources().getColor(R.color.textPrimary));
-            titleView.setPadding(dp(10), 0, 0, 0);
+            titleView.setPadding(dp(6), 0, 0, 0);
             titleRow.addView(titleView);
-            content.addView(titleRow, fullWidthParams(0, dp(12)));
+            headerRow.addView(titleRow, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            clockView = new TextView(this);
+            clockView.setTextSize(12);
+            clockView.setTextColor(getResources().getColor(R.color.textPrimary));
+            clockView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+            clockView.setPadding(dp(4), 0, 0, 0);
+            updateClock();
+            headerRow.addView(clockView, new LinearLayout.LayoutParams(
+                    dp(88), LinearLayout.LayoutParams.WRAP_CONTENT));
+            content.addView(headerRow, fullWidthParams(0, dp(12)));
         } else {
             TextView titleView = new TextView(this);
             titleView.setText(title);
@@ -89,10 +133,12 @@ public final class MainActivity extends Activity {
             content.addView(titleView, fullWidthParams(0, dp(12)));
         }
 
-        TextView descriptionView = new TextView(this);
-        descriptionView.setText(description);
-        descriptionView.setTextSize(17);
-        content.addView(descriptionView, fullWidthParams(0, dp(24)));
+        if (description != null && !description.isEmpty()) {
+            TextView descriptionView = new TextView(this);
+            descriptionView.setText(description);
+            descriptionView.setTextSize(17);
+            content.addView(descriptionView, fullWidthParams(0, dp(24)));
+        }
 
         ScrollView scrollView = new ScrollView(this);
         ChildFriendlyUi.stylePage(scrollView);
@@ -172,30 +218,34 @@ public final class MainActivity extends Activity {
 
     private void showChildHome() {
         childHomeVisible = true;
-        LinearLayout screen = createScreen("Reach Kids", "Choose what you want to do.");
-        TextView status = new TextView(this);
-        status.setText("Call a number saved by your parent. You cannot type a phone number.");
-        status.setTextSize(18);
-        screen.addView(status, fullWidthParams(0, dp(28)));
+        LinearLayout screen = createScreen("Reach Kids", "");
 
-        Button messagesButton = button("Messages");
-        messagesButton.setOnClickListener(view -> startActivity(new Intent(this, MessagesActivity.class)));
-        screen.addView(messagesButton, fullWidthParams(0, dp(12)));
+        if (!parentPreferences.areMessagesDisabled()) {
+            Button messagesButton = button("Messages");
+            messagesButton.setOnClickListener(view -> startActivity(new Intent(this, MessagesActivity.class)));
+            screen.addView(messagesButton, fullWidthParams(0, dp(12)));
+        }
 
-        addQuickCallButton(screen, 1);
-        addQuickCallButton(screen, 2);
+        if (!parentPreferences.isCallingDisabled()) {
+            addQuickCallButton(screen, 1);
+            addQuickCallButton(screen, 2);
+        }
 
         Button calendarButton = button("Calendar");
         calendarButton.setOnClickListener(view -> startActivity(new Intent(this, CalendarActivity.class)));
         screen.addView(calendarButton, fullWidthParams(0, dp(12)));
 
-        Button callButton = button("Call a contact");
-        callButton.setOnClickListener(view -> startActivity(new Intent(this, CallContactsActivity.class)));
-        screen.addView(callButton, fullWidthParams(0, dp(12)));
+        if (!parentPreferences.isCallingDisabled()) {
+            Button callButton = button("Call a contact");
+            callButton.setOnClickListener(view -> startActivity(new Intent(this, CallContactsActivity.class)));
+            screen.addView(callButton, fullWidthParams(0, dp(12)));
+        }
 
         Button parentButton = button("Parent area");
         parentButton.setOnClickListener(view -> showParentPinScreen());
         screen.addView(parentButton, fullWidthParams(0, 0));
+        startClockUpdates();
+        hideSystemBarsForChildHome();
     }
 
     private void addQuickCallButton(LinearLayout screen, int slot) {
@@ -211,6 +261,10 @@ public final class MainActivity extends Activity {
     }
 
     private void requestQuickCall(int slot) {
+        if (parentPreferences.isCallingDisabled()) {
+            showToast("Calling is disabled by a parent.");
+            return;
+        }
         long phoneDataId = parentPreferences.getQuickCallPhoneDataId(slot);
         if (phoneDataId < 0L) {
             showToast("This quick-call button has not been set up.");
@@ -229,10 +283,18 @@ public final class MainActivity extends Activity {
     }
 
     private void placeQuickCall(long phoneDataId) {
+        if (parentPreferences.isCallingDisabled()) {
+            showToast("Calling is disabled by a parent.");
+            return;
+        }
         backgroundExecutor.execute(() -> {
             SystemContact contact = contactsRepository.loadPhoneContact(phoneDataId);
             runOnUiThread(() -> {
                 if (isFinishing()) {
+                    return;
+                }
+                if (parentPreferences.isCallingDisabled()) {
+                    showToast("Calling is disabled by a parent.");
                     return;
                 }
                 if (contact == null || !CallTargetValidator.hasCallableNumber(contact.phoneNumber)) {
@@ -358,8 +420,43 @@ public final class MainActivity extends Activity {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
+    private void startClockUpdates() {
+        stopClockUpdates();
+        updateClock();
+        clockHandler.postDelayed(clockUpdater, 1000L);
+    }
+
+    private void stopClockUpdates() {
+        clockHandler.removeCallbacks(clockUpdater);
+    }
+
+    private void updateClock() {
+        if (clockView == null) {
+            return;
+        }
+        Date now = new Date();
+        String date = DateFormat.getDateInstance(DateFormat.MEDIUM).format(now);
+        String weekday = new SimpleDateFormat("EEEE", Locale.getDefault()).format(now);
+        String time = DateFormat.getTimeInstance(DateFormat.SHORT).format(now);
+        clockView.setText(date + "\n" + weekday + "\n" + time);
+    }
+
+    private void hideSystemBarsForChildHome() {
+        if (!childHomeVisible || !parentPreferences.isKioskEnabled()) {
+            return;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
     @Override
     protected void onDestroy() {
+        stopClockUpdates();
         backgroundExecutor.shutdownNow();
         super.onDestroy();
     }

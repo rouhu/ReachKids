@@ -21,12 +21,17 @@ public final class CallContactsActivity extends Activity {
     private static final int REQUEST_CALL_PERMISSION = 200;
 
     private ContactsRepository contactsRepository;
+    private ParentPreferences parentPreferences;
     private LinearLayout contactsContainer;
     private long pendingPhoneDataId = -1L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        parentPreferences = new ParentPreferences(this);
+        if (finishIfCallingDisabled()) {
+            return;
+        }
         contactsRepository = new ContactsRepository(this);
         showCallPicker();
     }
@@ -34,6 +39,9 @@ public final class CallContactsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (finishIfCallingDisabled()) {
+            return;
+        }
         if (contactsContainer != null) {
             loadContacts();
         }
@@ -107,6 +115,9 @@ public final class CallContactsActivity extends Activity {
     }
 
     private void requestCall(long phoneDataId) {
+        if (finishIfCallingDisabled()) {
+            return;
+        }
         if (!hasPermission(Manifest.permission.CALL_PHONE)) {
             pendingPhoneDataId = phoneDataId;
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -135,6 +146,9 @@ public final class CallContactsActivity extends Activity {
     }
 
     private void placeSelectedContactCall(long phoneDataId) {
+        if (finishIfCallingDisabled()) {
+            return;
+        }
         // Re-query at the action boundary so this call can only target the current provider value.
         SystemContact contact = contactsRepository.loadPhoneContact(phoneDataId);
         if (contact == null || !CallTargetValidator.hasCallableNumber(contact.phoneNumber)) {
@@ -156,6 +170,15 @@ public final class CallContactsActivity extends Activity {
     private boolean hasPermission(String permission) {
         return android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M
                 || checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean finishIfCallingDisabled() {
+        if (parentPreferences != null && parentPreferences.isCallingDisabled()) {
+            Toast.makeText(this, "Calling is disabled by a parent.", Toast.LENGTH_SHORT).show();
+            finish();
+            return true;
+        }
+        return false;
     }
 
     private void showMessage(String message) {

@@ -26,12 +26,17 @@ public final class MessagesActivity extends Activity {
 
     private SmsDatabase database;
     private ContactsRepository contactsRepository;
+    private ParentPreferences parentPreferences;
     private String conversationAddress;
     private LinearLayout messageContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        parentPreferences = new ParentPreferences(this);
+        if (finishIfMessagesDisabled()) {
+            return;
+        }
         database = new SmsDatabase(this);
         contactsRepository = new ContactsRepository(this);
         if (isMmsIntent(getIntent())) {
@@ -50,6 +55,9 @@ public final class MessagesActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        if (finishIfMessagesDisabled()) {
+            return;
+        }
         if (isMmsIntent(intent)) {
             conversationAddress = null;
             showUnsupportedMms();
@@ -66,6 +74,9 @@ public final class MessagesActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (finishIfMessagesDisabled()) {
+            return;
+        }
         if (conversationAddress == null) {
             showInbox();
         } else {
@@ -75,6 +86,15 @@ public final class MessagesActivity extends Activity {
 
     public static boolean isDefaultSmsApp(Activity activity) {
         return activity.getPackageName().equals(Telephony.Sms.getDefaultSmsPackage(activity));
+    }
+
+    private boolean finishIfMessagesDisabled() {
+        if (parentPreferences != null && parentPreferences.areMessagesDisabled()) {
+            Toast.makeText(this, "Messages are disabled by a parent.", Toast.LENGTH_SHORT).show();
+            finish();
+            return true;
+        }
+        return false;
     }
 
     private String resolveRequestedAddress(Intent intent) {
@@ -182,7 +202,7 @@ public final class MessagesActivity extends Activity {
 
         Button sendButton = button("Send SMS");
         sendButton.setEnabled(canReply && isDefaultSmsApp(this) && hasSendSmsPermission());
-        sendButton.setOnClickListener(view -> sendMessage(address, composer));
+        sendButton.setOnClickListener(view -> sendMessage(address, composer, sendButton));
         root.addView(sendButton, fullWidthParams(0, dp(6)));
 
         Button backButton = button("Back to messages");
@@ -226,7 +246,7 @@ public final class MessagesActivity extends Activity {
         }
     }
 
-    private void sendMessage(String address, EditText composer) {
+    private void sendMessage(String address, EditText composer, Button sendButton) {
         String body = composer.getText().toString().trim();
         if (!SmsBodyValidator.hasSendableBody(body)) {
             showToast("Write a message first.");
@@ -247,12 +267,18 @@ public final class MessagesActivity extends Activity {
             return;
         }
         try {
+            sendButton.setText("Sending...");
+            sendButton.setEnabled(false);
             new SmsSender(this).send(address, body);
             composer.setText("");
             loadConversation(address);
         } catch (SecurityException exception) {
+            sendButton.setText("Send SMS");
+            sendButton.setEnabled(true);
             showToast("Android did not allow this SMS.");
         } catch (IllegalArgumentException exception) {
+            sendButton.setText("Send SMS");
+            sendButton.setEnabled(true);
             showToast("This SMS could not be sent.");
         }
     }

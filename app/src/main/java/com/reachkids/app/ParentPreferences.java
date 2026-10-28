@@ -15,6 +15,8 @@ public final class ParentPreferences {
     private static final String KEY_RINGER_MUTED = "ringer_muted";
     private static final String KEY_PREVIOUS_RING_VOLUME = "previous_ring_volume";
     private static final String KEY_KIOSK_ENABLED = "kiosk_enabled";
+    private static final String KEY_CALLING_DISABLED = "calling_disabled";
+    private static final String KEY_MESSAGES_DISABLED = "messages_disabled";
     private static final String KEY_QUICK_CALL_1_LABEL = "quick_call_1_label";
     private static final String KEY_QUICK_CALL_1_PHONE_DATA_ID = "quick_call_1_phone_data_id";
     private static final String KEY_QUICK_CALL_2_LABEL = "quick_call_2_label";
@@ -107,6 +109,22 @@ public final class ParentPreferences {
 
     public void setKioskEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_KIOSK_ENABLED, enabled).apply();
+    }
+
+    public boolean isCallingDisabled() {
+        return preferences.getBoolean(KEY_CALLING_DISABLED, false);
+    }
+
+    public void setCallingDisabled(boolean disabled) {
+        preferences.edit().putBoolean(KEY_CALLING_DISABLED, disabled).apply();
+    }
+
+    public boolean areMessagesDisabled() {
+        return preferences.getBoolean(KEY_MESSAGES_DISABLED, false);
+    }
+
+    public void setMessagesDisabled(boolean disabled) {
+        preferences.edit().putBoolean(KEY_MESSAGES_DISABLED, disabled).apply();
     }
 
     /** Stores only a parent-provided label and the selected system Contacts phone-row ID. */
