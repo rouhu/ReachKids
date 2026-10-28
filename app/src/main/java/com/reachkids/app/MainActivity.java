@@ -334,6 +334,7 @@ public final class MainActivity extends Activity {
     private void enterKioskIfConfigured() {
         if (parentPreferences.isKioskEnabled() && devicePolicyController.canApplyKioskPolicy()) {
             try {
+                devicePolicyController.enableKioskPolicy(parentPreferences.isCameraDisabled());
                 devicePolicyController.enterLockTask(this);
             } catch (IllegalStateException | SecurityException exception) {
                 showToast("Could not enter kiosk mode.");

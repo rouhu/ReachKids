@@ -15,7 +15,6 @@ import java.util.List;
 /** Applies device-owner-only kiosk policy. All methods are safe to call when unmanaged. */
 public final class DevicePolicyController {
     private static final String TELECOM_PACKAGE = "com.android.server.telecom";
-    private static final String SAMSUNG_CONTACTS_PACKAGE = "com.samsung.android.contacts";
     private static final String SAMSUNG_IN_CALL_UI_PACKAGE = "com.samsung.android.incallui";
     private final Context context;
     private final DevicePolicyManager devicePolicyManager;
@@ -96,12 +95,11 @@ public final class DevicePolicyController {
         devicePolicyManager.addPersistentPreferredActivity(adminComponent, homeFilter, homeActivity);
     }
 
-    /** Allows the system dialer call flow only when those packages exist on the device. */
+    /** Allows only the system call handoff and in-call UI, never the editable Contacts app. */
     private String[] lockTaskPackages() {
         List<String> packages = new ArrayList<>();
         packages.add(context.getPackageName());
         addIfInstalled(packages, TELECOM_PACKAGE);
-        addIfInstalled(packages, SAMSUNG_CONTACTS_PACKAGE);
         addIfInstalled(packages, SAMSUNG_IN_CALL_UI_PACKAGE);
         return packages.toArray(new String[0]);
     }
