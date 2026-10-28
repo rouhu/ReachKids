@@ -43,6 +43,7 @@ public final class CalendarActivity extends Activity {
     private void showCalendar() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        ChildFriendlyUi.stylePage(root);
         int padding = dp(20);
         root.setPadding(padding, padding, padding, padding);
 
@@ -126,7 +127,7 @@ public final class CalendarActivity extends Activity {
             int sidePadding = dp(12);
             int verticalPadding = dp(10);
             eventView.setPadding(sidePadding, verticalPadding, sidePadding, verticalPadding);
-            eventView.setBackgroundColor(0xFFF1F1F1);
+            eventView.setBackgroundResource(R.drawable.event_card);
             eventContainer.addView(eventView, fullWidthParams(0, dp(8)));
         }
     }
@@ -148,6 +149,7 @@ public final class CalendarActivity extends Activity {
         button.setText(text);
         button.setTextSize(18);
         button.setMinHeight(dp(54));
+        ChildFriendlyUi.styleButton(button);
         return button;
     }
 

@@ -36,6 +36,7 @@ public final class MessageContactsActivity extends Activity {
     private void showPicker() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        ChildFriendlyUi.stylePage(root);
         int padding = dp(20);
         root.setPadding(padding, padding, padding, padding);
 
@@ -105,6 +106,7 @@ public final class MessageContactsActivity extends Activity {
         button.setText(text);
         button.setTextSize(18);
         button.setMinHeight(dp(58));
+        ChildFriendlyUi.styleButton(button);
         return button;
     }
 

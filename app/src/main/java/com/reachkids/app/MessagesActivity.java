@@ -284,6 +284,7 @@ public final class MessagesActivity extends Activity {
     private LinearLayout createRoot() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        ChildFriendlyUi.stylePage(root);
         int padding = dp(20);
         root.setPadding(padding, padding, padding, padding);
         return root;
@@ -301,6 +302,7 @@ public final class MessagesActivity extends Activity {
         button.setText(text);
         button.setTextSize(18);
         button.setMinHeight(dp(54));
+        ChildFriendlyUi.styleButton(button);
         return button;
     }
 

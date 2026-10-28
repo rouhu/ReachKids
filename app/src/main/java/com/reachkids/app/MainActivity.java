@@ -11,6 +11,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -29,6 +30,7 @@ public final class MainActivity extends Activity {
     private ContactsRepository contactsRepository;
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
     private long pendingQuickCallPhoneDataId = -1L;
+    private boolean childHomeVisible;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +45,9 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (parentPreferences != null && parentPreferences.hasPin()) {
-            showChildHome();
+            if (!childHomeVisible) {
+                showChildHome();
+            }
             enterKioskIfConfigured();
         }
     }
@@ -60,14 +64,30 @@ public final class MainActivity extends Activity {
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
+        ChildFriendlyUi.stylePage(content);
         int padding = dp(24);
         content.setPadding(padding, padding, padding, padding);
 
-        TextView titleView = new TextView(this);
-        titleView.setText(title);
-        titleView.setTextSize(28);
-        titleView.setTextColor(getResources().getColor(R.color.textPrimary));
-        content.addView(titleView, fullWidthParams(0, dp(12)));
+        if ("Reach Kids".equals(title)) {
+            LinearLayout titleRow = new LinearLayout(this);
+            titleRow.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView logo = new ImageView(this);
+            logo.setImageResource(R.drawable.ic_reach_kids_logo);
+            titleRow.addView(logo, new LinearLayout.LayoutParams(dp(58), dp(58)));
+            TextView titleView = new TextView(this);
+            titleView.setText(title);
+            titleView.setTextSize(30);
+            titleView.setTextColor(getResources().getColor(R.color.textPrimary));
+            titleView.setPadding(dp(10), 0, 0, 0);
+            titleRow.addView(titleView);
+            content.addView(titleRow, fullWidthParams(0, dp(12)));
+        } else {
+            TextView titleView = new TextView(this);
+            titleView.setText(title);
+            titleView.setTextSize(28);
+            titleView.setTextColor(getResources().getColor(R.color.textPrimary));
+            content.addView(titleView, fullWidthParams(0, dp(12)));
+        }
 
         TextView descriptionView = new TextView(this);
         descriptionView.setText(description);
@@ -75,6 +95,7 @@ public final class MainActivity extends Activity {
         content.addView(descriptionView, fullWidthParams(0, dp(24)));
 
         ScrollView scrollView = new ScrollView(this);
+        ChildFriendlyUi.stylePage(scrollView);
         scrollView.setFillViewport(true);
         scrollView.addView(content, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
@@ -83,6 +104,7 @@ public final class MainActivity extends Activity {
     }
 
     private void showFirstRunSetup() {
+        childHomeVisible = false;
         LinearLayout screen = createScreen("Parent setup",
                 "Create a parent PIN before giving this phone to a child. "
                         + "Phase 1 has no PIN recovery: forgetting it requires resetting and reprovisioning the device.");
@@ -149,6 +171,7 @@ public final class MainActivity extends Activity {
     }
 
     private void showChildHome() {
+        childHomeVisible = true;
         LinearLayout screen = createScreen("Reach Kids", "Choose what you want to do.");
         TextView status = new TextView(this);
         status.setText("Call a number saved by your parent. You cannot type a phone number.");
@@ -231,18 +254,15 @@ public final class MainActivity extends Activity {
     private void enterKioskIfConfigured() {
         if (parentPreferences.isKioskEnabled() && devicePolicyController.canApplyKioskPolicy()) {
             try {
-                // Refresh the lock-task allowlist after app updates and system-dialer changes.
-                devicePolicyController.enableKioskPolicy(parentPreferences.isCameraDisabled());
                 devicePolicyController.enterLockTask(this);
-            } catch (IllegalArgumentException exception) {
-                showToast("Kiosk policy needs to be reapplied by a parent.");
             } catch (IllegalStateException | SecurityException exception) {
-                showToast("Could not refresh kiosk policy.");
+                showToast("Could not enter kiosk mode.");
             }
         }
     }
 
     private void showParentPinScreen() {
+        childHomeVisible = false;
         if (parentPreferences.isPinEntryLocked()) {
             showToast("Try again in " + formatRemainingLockTime() + ".");
             return;
@@ -306,6 +326,7 @@ public final class MainActivity extends Activity {
         button.setText(text);
         button.setTextSize(18);
         button.setMinHeight(dp(56));
+        ChildFriendlyUi.styleButton(button);
         return button;
     }
 

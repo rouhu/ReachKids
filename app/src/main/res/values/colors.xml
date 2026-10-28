@@ -5,4 +5,11 @@
     <color name="colorAccent">#FF9800</color>
     <color name="surface">#FAFAFA</color>
     <color name="textPrimary">#1B1B1B</color>
+    <color name="pageBlue">#DDF3FF</color>
+    <color name="pageBlueDark">#B9E4F8</color>
+    <color name="buttonYellow">#FFF3A6</color>
+    <color name="buttonYellowPressed">#F6D96D</color>
+    <color name="buttonAmber">#C98B15</color>
+    <color name="buttonText">#3D2C00</color>
+    <color name="cardBlue">#F6FCFF</color>
 </resources>

@@ -65,8 +65,10 @@ public final class ContactsActivity extends Activity {
     private void showParentScreen() {
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
+        ChildFriendlyUi.stylePage(scrollView);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        ChildFriendlyUi.stylePage(root);
         int padding = dp(20);
         root.setPadding(padding, padding, padding, padding);
         scrollView.addView(root);
@@ -594,6 +596,7 @@ public final class ContactsActivity extends Activity {
         button.setText(text);
         button.setTextSize(17);
         button.setMinHeight(dp(54));
+        ChildFriendlyUi.styleButton(button);
         return button;
     }
 

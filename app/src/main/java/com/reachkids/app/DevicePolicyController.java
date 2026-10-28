@@ -1,6 +1,7 @@
 package com.reachkids.app;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -56,9 +57,20 @@ public final class DevicePolicyController {
     }
 
     public void enterLockTask(Activity activity) {
-        if (canApplyKioskPolicy()) {
+        if (canApplyKioskPolicy() && !isLockTaskActive()) {
             activity.startLockTask();
         }
+    }
+
+    private boolean isLockTaskActive() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return false;
+        }
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(
+                Context.ACTIVITY_SERVICE);
+        return activityManager != null
+                && activityManager.getLockTaskModeState()
+                != ActivityManager.LOCK_TASK_MODE_NONE;
     }
 
     public void exitLockTask(Activity activity) {
