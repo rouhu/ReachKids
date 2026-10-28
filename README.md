@@ -1,6 +1,6 @@
 # Reach Kids
 
-Reach Kids is a deliberately simple Android launcher-style app for a child-managed phone. It is designed around a Samsung Galaxy A3 (2016) running Android 7.0, where a parent can configure contacts and device settings while the child gets a large, restricted home screen for calling, SMS, and viewing calendar entries.
+Reach Kids is a deliberately simple launcher-style app for Android phones. It is designed to also run on older Android 5 phones. So you can give your old Android phone to your child and she/he will be reachable via calls and SMSes but without any access to the other smart phone features and camera. The app runs on kiosk mode which locks the phone for the app use only. This is especially useful as not to disturb school activities. The parent can configure contacts and device settings while the child gets a large, restricted home screen for calling, SMS, and viewing calendar entries.
 
 The app uses the phone's existing **Contacts** and **Calendar** providers. It does not maintain a second copy of contacts or calendar events.
 
