@@ -4,12 +4,14 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -72,7 +74,19 @@ public final class MainActivity extends Activity {
             }
             enterKioskIfConfigured();
             hideSystemBarsForChildHome();
+            enforceRingerMuted();
         }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (childHomeVisible && parentPreferences != null && parentPreferences.isRingerMuted()
+                && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+                || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE)) {
+            enforceRingerMuted();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
@@ -246,6 +260,7 @@ public final class MainActivity extends Activity {
         screen.addView(parentButton, fullWidthParams(0, 0));
         startClockUpdates();
         hideSystemBarsForChildHome();
+        enforceRingerMuted();
     }
 
     private void addQuickCallButton(LinearLayout screen, int slot) {
@@ -452,6 +467,23 @@ public final class MainActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
+    private void enforceRingerMuted() {
+        if (parentPreferences == null || !parentPreferences.isRingerMuted()) {
+            return;
+        }
+        AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audioManager == null) {
+            return;
+        }
+        try {
+            if (audioManager.getStreamVolume(AudioManager.STREAM_RING) != 0) {
+                audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0);
+            }
+        } catch (SecurityException ignored) {
+            // Leave the stored preference unchanged; the parent can retry from the parent area.
+        }
     }
 
     @Override
