@@ -358,7 +358,14 @@ public final class MainActivity extends Activity {
                 pin.setText("");
                 return;
             }
-            char[] candidate = pin.getText().toString().toCharArray();
+            String enteredPin = pin.getText().toString();
+            if (!isAcceptablePin(enteredPin)) {
+                showToast(enteredPin.isEmpty()
+                        ? "Enter your parent PIN."
+                        : "Enter a parent PIN with at least four digits.");
+                return;
+            }
+            char[] candidate = enteredPin.toCharArray();
             pin.setText("");
             pin.setEnabled(false);
             unlockButton.setEnabled(false);

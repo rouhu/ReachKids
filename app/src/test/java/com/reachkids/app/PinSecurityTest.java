@@ -13,6 +13,7 @@ public class PinSecurityTest {
 
         assertTrue(PinSecurity.verify("2468".toCharArray(), salt, verifier));
         assertFalse(PinSecurity.verify("2469".toCharArray(), salt, verifier));
+        assertFalse(PinSecurity.verify(new char[0], salt, verifier));
     }
 
     @Test

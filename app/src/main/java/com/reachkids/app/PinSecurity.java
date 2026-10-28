@@ -41,7 +41,7 @@ public final class PinSecurity {
     }
 
     public static boolean verify(char[] candidate, byte[] salt, byte[] expectedHash) {
-        if (candidate == null || salt == null || expectedHash == null) {
+        if (candidate == null || candidate.length == 0 || salt == null || expectedHash == null) {
             return false;
         }
         return constantTimeEquals(derive(candidate, salt), expectedHash);
