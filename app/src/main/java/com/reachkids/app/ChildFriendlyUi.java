@@ -2,11 +2,14 @@ package com.reachkids.app;
 
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 
 /** Shared lightweight visual styling for Reach Kids' programmatic screens. */
 public final class ChildFriendlyUi {
+    private static final int SWIPE_CONFIRM_DISTANCE_DP = 96;
+
     private ChildFriendlyUi() {
     }
 
@@ -26,6 +29,40 @@ public final class ChildFriendlyUi {
             button.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
             button.setCompoundDrawablePadding(dp(button, 10));
         }
+    }
+
+    /** Requires a deliberate right swipe so high-impact child actions cannot be triggered by a tap. */
+    public static void requireSwipeRight(Button button, Runnable action) {
+        final float minimumDistance = dp(button, SWIPE_CONFIRM_DISTANCE_DP);
+        final float[] startX = new float[1];
+        final float[] startY = new float[1];
+        CharSequence label = button.getText();
+        button.setText(label + "\nSwipe right ->");
+        button.setOnTouchListener((view, event) -> {
+            if (!button.isEnabled()) {
+                return true;
+            }
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    startX[0] = event.getX();
+                    startY[0] = event.getY();
+                    button.setPressed(true);
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    button.setPressed(false);
+                    float horizontalDistance = event.getX() - startX[0];
+                    float verticalDistance = Math.abs(event.getY() - startY[0]);
+                    if (horizontalDistance >= minimumDistance && verticalDistance <= minimumDistance) {
+                        action.run();
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    button.setPressed(false);
+                    return true;
+                default:
+                    return true;
+            }
+        });
     }
 
     private static int iconFor(String text) {

@@ -251,7 +251,8 @@ public final class MainActivity extends Activity {
 
         if (!parentPreferences.isCallingDisabled()) {
             Button callButton = button("Call a contact");
-            callButton.setOnClickListener(view -> startActivity(new Intent(this, CallContactsActivity.class)));
+            ChildFriendlyUi.requireSwipeRight(callButton,
+                    () -> startActivity(new Intent(this, CallContactsActivity.class)));
             screen.addView(callButton, fullWidthParams(0, dp(12)));
         }
 
@@ -271,7 +272,9 @@ public final class MainActivity extends Activity {
         quickCallButton.setTextSize(22);
         quickCallButton.setMinHeight(dp(84));
         quickCallButton.setEnabled(configured);
-        quickCallButton.setOnClickListener(view -> requestQuickCall(slot));
+        if (configured) {
+            ChildFriendlyUi.requireSwipeRight(quickCallButton, () -> requestQuickCall(slot));
+        }
         screen.addView(quickCallButton, fullWidthParams(0, dp(12)));
     }
 

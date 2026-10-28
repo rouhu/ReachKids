@@ -202,7 +202,7 @@ public final class MessagesActivity extends Activity {
 
         Button sendButton = button("Send SMS");
         sendButton.setEnabled(canReply && isDefaultSmsApp(this) && hasSendSmsPermission());
-        sendButton.setOnClickListener(view -> sendMessage(address, composer, sendButton));
+        ChildFriendlyUi.requireSwipeRight(sendButton, () -> sendMessage(address, composer, sendButton));
         root.addView(sendButton, fullWidthParams(0, dp(6)));
 
         Button backButton = button("Back to messages");

@@ -93,12 +93,16 @@ public final class CalendarActivity extends Activity {
     private void loadEvents() {
         eventContainer.removeAllViews();
         showMessage("Loading calendar events...");
-        long start = System.currentTimeMillis();
-        Calendar end = Calendar.getInstance();
-        end.setTimeInMillis(start);
+        Calendar startOfToday = Calendar.getInstance();
+        startOfToday.set(Calendar.HOUR_OF_DAY, 0);
+        startOfToday.set(Calendar.MINUTE, 0);
+        startOfToday.set(Calendar.SECOND, 0);
+        startOfToday.set(Calendar.MILLISECOND, 0);
+        Calendar end = (Calendar) startOfToday.clone();
         end.add(Calendar.DAY_OF_YEAR, UPCOMING_DAYS);
         backgroundExecutor.execute(() -> {
-            List<CalendarEvent> events = calendarRepository.loadUpcomingEvents(start, end.getTimeInMillis());
+            List<CalendarEvent> events = calendarRepository.loadUpcomingEvents(
+                    startOfToday.getTimeInMillis(), end.getTimeInMillis());
             runOnUiThread(() -> showEvents(events));
         });
     }
