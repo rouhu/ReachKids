@@ -14,6 +14,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.Calendar;
+
 import java.util.List;
 
 /** Child call picker. It exposes phone-number rows from system Contacts, never a dial pad. */
@@ -173,8 +175,11 @@ public final class CallContactsActivity extends Activity {
     }
 
     private boolean finishIfCallingDisabled() {
-        if (parentPreferences != null && parentPreferences.isCallingDisabled()) {
-            Toast.makeText(this, "Calling is disabled by a parent.", Toast.LENGTH_SHORT).show();
+        if (parentPreferences != null && (parentPreferences.isCallingDisabled()
+                || BlockedHoursSchedule.isBlocked(Calendar.getInstance(), parentPreferences))) {
+            Toast.makeText(this, parentPreferences.isCallingDisabled()
+                    ? "Calling is disabled by a parent."
+                    : "Blocked Now", Toast.LENGTH_SHORT).show();
             finish();
             return true;
         }

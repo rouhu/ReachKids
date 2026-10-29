@@ -16,6 +16,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.Calendar;
+
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.List;
@@ -89,8 +91,11 @@ public final class MessagesActivity extends Activity {
     }
 
     private boolean finishIfMessagesDisabled() {
-        if (parentPreferences != null && parentPreferences.areMessagesDisabled()) {
-            Toast.makeText(this, "Messages are disabled by a parent.", Toast.LENGTH_SHORT).show();
+        if (parentPreferences != null && (parentPreferences.areMessagesDisabled()
+                || BlockedHoursSchedule.isBlocked(Calendar.getInstance(), parentPreferences))) {
+            Toast.makeText(this, parentPreferences.areMessagesDisabled()
+                    ? "Messages are disabled by a parent."
+                    : "Blocked Now", Toast.LENGTH_SHORT).show();
             finish();
             return true;
         }

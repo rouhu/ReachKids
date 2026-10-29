@@ -2,10 +2,14 @@ package com.reachkids.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,6 +19,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -24,6 +29,7 @@ import android.widget.Toast;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,17 +43,27 @@ public final class MainActivity extends Activity {
     private LinearLayout content;
     private ContactsRepository contactsRepository;
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
+    private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateBatteryLevel(intent);
+        }
+    };
     private final Handler clockHandler = new Handler(Looper.getMainLooper());
     private final Runnable clockUpdater = new Runnable() {
         @Override
         public void run() {
             updateClock();
+            refreshBlockedHomeIfNeeded();
             clockHandler.postDelayed(this, 1000L);
         }
     };
     private long pendingQuickCallPhoneDataId = -1L;
     private boolean childHomeVisible;
     private TextView clockView;
+    private TextView batteryView;
+    private boolean batteryReceiverRegistered;
+    private boolean childHomeBlocked;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +86,9 @@ public final class MainActivity extends Activity {
             if (!childHomeVisible) {
                 showChildHome();
             } else {
+                refreshBlockedHomeIfNeeded();
                 startClockUpdates();
+                startBatteryUpdates();
             }
             enterKioskIfConfigured();
             hideSystemBarsForChildHome();
@@ -92,6 +110,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onPause() {
         stopClockUpdates();
+        stopBatteryUpdates();
         super.onPause();
     }
 
@@ -105,7 +124,9 @@ public final class MainActivity extends Activity {
 
     private LinearLayout createScreen(String title, String description) {
         stopClockUpdates();
+        stopBatteryUpdates();
         clockView = null;
+        batteryView = null;
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -159,7 +180,26 @@ public final class MainActivity extends Activity {
         scrollView.setFillViewport(true);
         scrollView.addView(content, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
-        setContentView(scrollView);
+        if ("Reach Kids".equals(title)) {
+            FrameLayout page = new FrameLayout(this);
+            ChildFriendlyUi.stylePage(page);
+            page.addView(scrollView, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+            batteryView = new TextView(this);
+            batteryView.setTextSize(14);
+            batteryView.setTextColor(getResources().getColor(R.color.textPrimary));
+            batteryView.setGravity(Gravity.END);
+            batteryView.setPadding(dp(8), dp(4), dp(8), dp(4));
+            FrameLayout.LayoutParams batteryParams = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.END | Gravity.BOTTOM);
+            batteryParams.setMargins(0, 0, dp(12), dp(12));
+            page.addView(batteryView, batteryParams);
+            setContentView(page);
+        } else {
+            setContentView(scrollView);
+        }
         return content;
     }
 
@@ -232,24 +272,33 @@ public final class MainActivity extends Activity {
 
     private void showChildHome() {
         childHomeVisible = true;
+        childHomeBlocked = isBlockedNow();
         LinearLayout screen = createScreen("Reach Kids", "");
 
-        if (!parentPreferences.areMessagesDisabled()) {
+        if (childHomeBlocked) {
+            TextView blockedNow = new TextView(this);
+            blockedNow.setText("Blocked Now");
+            blockedNow.setTextSize(30);
+            blockedNow.setGravity(Gravity.CENTER);
+            screen.addView(blockedNow, fullWidthParams(dp(24), dp(24)));
+        } else if (!parentPreferences.areMessagesDisabled()) {
             Button messagesButton = button("Messages");
             messagesButton.setOnClickListener(view -> startActivity(new Intent(this, MessagesActivity.class)));
             screen.addView(messagesButton, fullWidthParams(0, dp(12)));
         }
 
-        if (!parentPreferences.isCallingDisabled()) {
+        if (!childHomeBlocked && !parentPreferences.isCallingDisabled()) {
             addQuickCallButton(screen, 1);
             addQuickCallButton(screen, 2);
         }
 
-        Button calendarButton = button("Calendar");
-        calendarButton.setOnClickListener(view -> startActivity(new Intent(this, CalendarActivity.class)));
-        screen.addView(calendarButton, fullWidthParams(0, dp(12)));
+        if (!childHomeBlocked) {
+            Button calendarButton = button("Calendar");
+            calendarButton.setOnClickListener(view -> startActivity(new Intent(this, CalendarActivity.class)));
+            screen.addView(calendarButton, fullWidthParams(0, dp(12)));
+        }
 
-        if (!parentPreferences.isCallingDisabled()) {
+        if (!childHomeBlocked && !parentPreferences.isCallingDisabled()) {
             Button callButton = button("Call a contact");
             ChildFriendlyUi.requireSwipeRight(callButton,
                     () -> startActivity(new Intent(this, CallContactsActivity.class)));
@@ -260,6 +309,7 @@ public final class MainActivity extends Activity {
         parentButton.setOnClickListener(view -> showParentPinScreen());
         screen.addView(parentButton, fullWidthParams(0, 0));
         startClockUpdates();
+        startBatteryUpdates();
         hideSystemBarsForChildHome();
         enforceRingerMuted();
     }
@@ -279,7 +329,7 @@ public final class MainActivity extends Activity {
     }
 
     private void requestQuickCall(int slot) {
-        if (parentPreferences.isCallingDisabled()) {
+        if (isBlockedNow() || parentPreferences.isCallingDisabled()) {
             showToast("Calling is disabled by a parent.");
             return;
         }
@@ -301,7 +351,7 @@ public final class MainActivity extends Activity {
     }
 
     private void placeQuickCall(long phoneDataId) {
-        if (parentPreferences.isCallingDisabled()) {
+        if (isBlockedNow() || parentPreferences.isCallingDisabled()) {
             showToast("Calling is disabled by a parent.");
             return;
         }
@@ -311,7 +361,7 @@ public final class MainActivity extends Activity {
                 if (isFinishing()) {
                     return;
                 }
-                if (parentPreferences.isCallingDisabled()) {
+                if (isBlockedNow() || parentPreferences.isCallingDisabled()) {
                     showToast("Calling is disabled by a parent.");
                     return;
                 }
@@ -435,6 +485,16 @@ public final class MainActivity extends Activity {
                 || checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean isBlockedNow() {
+        return BlockedHoursSchedule.isBlocked(Calendar.getInstance(), parentPreferences);
+    }
+
+    private void refreshBlockedHomeIfNeeded() {
+        if (childHomeVisible && childHomeBlocked != isBlockedNow()) {
+            showChildHome();
+        }
+    }
+
     private String formatRemainingLockTime() {
         long remainingSeconds = (parentPreferences.millisecondsUntilPinEntryAllowed() + 999L) / 1000L;
         long minutes = remainingSeconds / 60L;
@@ -465,6 +525,38 @@ public final class MainActivity extends Activity {
         String weekday = new SimpleDateFormat("EEEE", Locale.getDefault()).format(now);
         String time = DateFormat.getTimeInstance(DateFormat.SHORT).format(now);
         clockView.setText(date + "\n" + weekday + "\n" + time);
+    }
+
+    private void startBatteryUpdates() {
+        stopBatteryUpdates();
+        if (batteryView == null) {
+            return;
+        }
+        Intent batteryStatus = registerReceiver(batteryReceiver,
+                new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        batteryReceiverRegistered = true;
+        updateBatteryLevel(batteryStatus);
+    }
+
+    private void stopBatteryUpdates() {
+        if (batteryReceiverRegistered) {
+            unregisterReceiver(batteryReceiver);
+            batteryReceiverRegistered = false;
+        }
+    }
+
+    private void updateBatteryLevel(Intent batteryStatus) {
+        if (batteryView == null || batteryStatus == null) {
+            return;
+        }
+        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        if (level >= 0 && scale > 0) {
+            int percentage = Math.round(level * 100f / scale);
+            batteryView.setText("Battery " + percentage + "%");
+        } else {
+            batteryView.setText("Battery");
+        }
     }
 
     private void hideSystemBarsForChildHome() {
@@ -500,6 +592,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         stopClockUpdates();
+        stopBatteryUpdates();
         backgroundExecutor.shutdownNow();
         super.onDestroy();
     }

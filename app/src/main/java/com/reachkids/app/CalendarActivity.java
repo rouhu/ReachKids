@@ -9,6 +9,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import android.widget.Toast;
+
 import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -24,10 +26,15 @@ public final class CalendarActivity extends Activity {
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
     private CalendarRepository calendarRepository;
     private LinearLayout eventContainer;
+    private ParentPreferences parentPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        parentPreferences = new ParentPreferences(this);
+        if (finishIfBlocked()) {
+            return;
+        }
         calendarRepository = new CalendarRepository(this);
         showCalendar();
     }
@@ -35,9 +42,21 @@ public final class CalendarActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (finishIfBlocked()) {
+            return;
+        }
         if (eventContainer != null && hasCalendarPermission()) {
             loadEvents();
         }
+    }
+
+    private boolean finishIfBlocked() {
+        if (parentPreferences != null && BlockedHoursSchedule.isBlocked(Calendar.getInstance(), parentPreferences)) {
+            Toast.makeText(this, "Blocked Now", Toast.LENGTH_SHORT).show();
+            finish();
+            return true;
+        }
+        return false;
     }
 
     private void showCalendar() {

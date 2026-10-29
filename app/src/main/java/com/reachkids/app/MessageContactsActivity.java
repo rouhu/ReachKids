@@ -11,6 +11,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.util.Calendar;
+
 import java.util.List;
 
 /** Child recipient picker for new SMS messages; only system Contacts are selectable. */
@@ -103,7 +105,8 @@ public final class MessageContactsActivity extends Activity {
     }
 
     private boolean finishIfMessagesDisabled() {
-        if (parentPreferences != null && parentPreferences.areMessagesDisabled()) {
+        if (parentPreferences != null && (parentPreferences.areMessagesDisabled()
+                || BlockedHoursSchedule.isBlocked(Calendar.getInstance(), parentPreferences))) {
             finish();
             return true;
         }

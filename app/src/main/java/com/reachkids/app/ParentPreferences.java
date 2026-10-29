@@ -17,6 +17,9 @@ public final class ParentPreferences {
     private static final String KEY_KIOSK_ENABLED = "kiosk_enabled";
     private static final String KEY_CALLING_DISABLED = "calling_disabled";
     private static final String KEY_MESSAGES_DISABLED = "messages_disabled";
+    private static final String KEY_BLOCKED_HOURS_ENABLED_PREFIX = "blocked_hours_enabled_";
+    private static final String KEY_BLOCKED_HOURS_START_PREFIX = "blocked_hours_start_";
+    private static final String KEY_BLOCKED_HOURS_END_PREFIX = "blocked_hours_end_";
     private static final String KEY_QUICK_CALL_1_LABEL = "quick_call_1_label";
     private static final String KEY_QUICK_CALL_1_PHONE_DATA_ID = "quick_call_1_phone_data_id";
     private static final String KEY_QUICK_CALL_2_LABEL = "quick_call_2_label";
@@ -127,6 +130,30 @@ public final class ParentPreferences {
         preferences.edit().putBoolean(KEY_MESSAGES_DISABLED, disabled).apply();
     }
 
+    public boolean isBlockedHoursEnabled(int calendarDay) {
+        return preferences.getBoolean(blockedHoursEnabledKey(calendarDay), false);
+    }
+
+    public int getBlockedStartMinute(int calendarDay) {
+        return preferences.getInt(blockedHoursStartKey(calendarDay), 0);
+    }
+
+    public int getBlockedEndMinute(int calendarDay) {
+        return preferences.getInt(blockedHoursEndKey(calendarDay), 0);
+    }
+
+    public void saveBlockedHours(int calendarDay, boolean enabled, int startMinute, int endMinute) {
+        if (startMinute < 0 || startMinute >= BlockedHoursSchedule.MINUTES_PER_DAY
+                || endMinute < 0 || endMinute >= BlockedHoursSchedule.MINUTES_PER_DAY) {
+            throw new IllegalArgumentException("Blocked-hours times must be within one day");
+        }
+        preferences.edit()
+                .putBoolean(blockedHoursEnabledKey(calendarDay), enabled)
+                .putInt(blockedHoursStartKey(calendarDay), startMinute)
+                .putInt(blockedHoursEndKey(calendarDay), endMinute)
+                .apply();
+    }
+
     /** Stores only a parent-provided label and the selected system Contacts phone-row ID. */
     public void saveQuickCall(int slot, String label, long phoneDataId) {
         if (phoneDataId < 0L || label == null || label.trim().isEmpty()) {
@@ -167,6 +194,25 @@ public final class ParentPreferences {
             default:
                 throw new IllegalArgumentException("Quick-call slot must be 1 or 2");
         }
+    }
+
+    private String blockedHoursEnabledKey(int calendarDay) {
+        return KEY_BLOCKED_HOURS_ENABLED_PREFIX + validatedCalendarDay(calendarDay);
+    }
+
+    private String blockedHoursStartKey(int calendarDay) {
+        return KEY_BLOCKED_HOURS_START_PREFIX + validatedCalendarDay(calendarDay);
+    }
+
+    private String blockedHoursEndKey(int calendarDay) {
+        return KEY_BLOCKED_HOURS_END_PREFIX + validatedCalendarDay(calendarDay);
+    }
+
+    private int validatedCalendarDay(int calendarDay) {
+        if (calendarDay < java.util.Calendar.SUNDAY || calendarDay > java.util.Calendar.SATURDAY) {
+            throw new IllegalArgumentException("Calendar day must be Sunday through Saturday");
+        }
+        return calendarDay;
     }
 
     private String quickCallPhoneDataIdKey(int slot) {

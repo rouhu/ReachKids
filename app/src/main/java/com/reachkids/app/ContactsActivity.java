@@ -23,6 +23,7 @@ import android.widget.Toast;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Calendar;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -174,6 +175,10 @@ public final class ContactsActivity extends Activity {
         });
         root.addView(disableMessagesCheckBox, fullWidthParams(0, dp(10)));
 
+        Button blockedHoursButton = button("Set daily blocked hours");
+        blockedHoursButton.setOnClickListener(view -> showBlockedHoursDialog());
+        root.addView(blockedHoursButton, fullWidthParams(0, dp(10)));
+
         contactsContainer = new LinearLayout(this);
         contactsContainer.setOrientation(LinearLayout.VERTICAL);
         root.addView(contactsContainer, fullWidthParams(0, dp(8)));
@@ -192,6 +197,108 @@ public final class ContactsActivity extends Activity {
         return preferences.hasQuickCall(slot)
                 ? "Set quick call " + slot + " (currently: " + preferences.getQuickCallLabel(slot) + ")"
                 : "Set quick call " + slot;
+    }
+
+    private void showBlockedHoursDialog() {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(16);
+        form.setPadding(padding, 0, padding, 0);
+
+        TextView help = new TextView(this);
+        help.setText("Enable a day, then enter 24-hour times (HH:MM). End may be earlier than start for overnight blocking, e.g. 20:00 to 07:00.");
+        help.setTextSize(15);
+        form.addView(help, fullWidthParams(0, dp(12)));
+
+        DayScheduleRow[] rows = new DayScheduleRow[]{
+                addBlockedHoursRow(form, "Monday", Calendar.MONDAY),
+                addBlockedHoursRow(form, "Tuesday", Calendar.TUESDAY),
+                addBlockedHoursRow(form, "Wednesday", Calendar.WEDNESDAY),
+                addBlockedHoursRow(form, "Thursday", Calendar.THURSDAY),
+                addBlockedHoursRow(form, "Friday", Calendar.FRIDAY),
+                addBlockedHoursRow(form, "Saturday", Calendar.SATURDAY),
+                addBlockedHoursRow(form, "Sunday", Calendar.SUNDAY)
+        };
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Daily blocked hours")
+                .setView(form)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> saveBlockedHours(dialog, rows)));
+        dialog.show();
+    }
+
+    private DayScheduleRow addBlockedHoursRow(LinearLayout form, String dayName, int calendarDay) {
+        CheckBox enabled = new CheckBox(this);
+        enabled.setText(dayName);
+        enabled.setChecked(preferences.isBlockedHoursEnabled(calendarDay));
+        form.addView(enabled, fullWidthParams(0, 0));
+
+        LinearLayout times = new LinearLayout(this);
+        times.setOrientation(LinearLayout.HORIZONTAL);
+        EditText start = timeInput(BlockedHoursSchedule.formatTime(preferences.getBlockedStartMinute(calendarDay)));
+        EditText end = timeInput(BlockedHoursSchedule.formatTime(preferences.getBlockedEndMinute(calendarDay)));
+        times.addView(start, weightedParams(1f, 0, dp(6)));
+        times.addView(end, weightedParams(1f, dp(6), dp(10)));
+        form.addView(times, fullWidthParams(0, 0));
+        return new DayScheduleRow(calendarDay, enabled, start, end);
+    }
+
+    private EditText timeInput(String value) {
+        EditText input = new EditText(this);
+        input.setText(value);
+        input.setHint("HH:MM");
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_DATETIME);
+        return input;
+    }
+
+    private void saveBlockedHours(AlertDialog dialog, DayScheduleRow[] rows) {
+        for (DayScheduleRow row : rows) {
+            if (!row.enabled.isChecked()) {
+                preferences.saveBlockedHours(row.calendarDay, false, 0, 0);
+                continue;
+            }
+            int start = BlockedHoursSchedule.parseTime(row.start.getText().toString().trim());
+            int end = BlockedHoursSchedule.parseTime(row.end.getText().toString().trim());
+            if (start < 0 || end < 0) {
+                showToast("Use HH:MM times from 00:00 through 23:59.");
+                return;
+            }
+            if (start == end) {
+                showToast("A blocked range must have different start and end times.");
+                return;
+            }
+            preferences.saveBlockedHours(row.calendarDay, true, start, end);
+        }
+        ParentSession.touch();
+        showToast("Daily blocked hours saved.");
+        dialog.dismiss();
+    }
+
+    private LinearLayout.LayoutParams weightedParams(float weight, int leftMargin, int bottomMargin) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, weight);
+        params.leftMargin = leftMargin;
+        params.bottomMargin = bottomMargin;
+        return params;
+    }
+
+    private static final class DayScheduleRow {
+        final int calendarDay;
+        final CheckBox enabled;
+        final EditText start;
+        final EditText end;
+
+        DayScheduleRow(int calendarDay, CheckBox enabled, EditText start, EditText end) {
+            this.calendarDay = calendarDay;
+            this.enabled = enabled;
+            this.start = start;
+            this.end = end;
+        }
     }
 
     private void showQuickCallSetup(int slot) {
