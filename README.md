@@ -4,7 +4,49 @@ Reach Kids is a deliberately simple launcher-style app for Android phones. It is
 
 The app uses the phone's existing **Contacts** and **Calendar** providers. It does not maintain a second copy of contacts or calendar events.
 
-> **Important:** Installing the APK by itself does not lock down an Android phone. The kiosk experience requires device-owner provisioning on a factory-reset device. See [PROVISIONING.md](PROVISIONING.md) before relying on it for a child.
+> **Important:** Installing the APK by itself does not lock down an Android phone. Full kiosk mode requires device-owner provisioning on a factory-reset device. The simplified setup steps below use a Windows computer and Android Platform Tools; Android Studio is not required.
+
+## Download APK
+
+The current built APK is available in this repository:
+
+- [Download Reach Kids test APK](downloads/ReachKids-0.1.0-phase1-debug.apk)
+
+This is a **debug/test APK**, not a signed production release. Install it only on a device you control and test it thoroughly before child use. Its SHA-256 checksum is:
+
+```text
+C26B8E252C48072540CF4A9CAE1D262F507161E95AABEBFB921AD4E24EE3FC9D
+```
+
+## Simple kiosk setup for a dedicated child phone
+
+Use this procedure if you want Reach Kids to enforce kiosk mode. It is intended for a dedicated child phone, not a phone already used normally by someone else.
+
+### You need
+
+- A Windows computer and USB data cable.
+- The APK above.
+- [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools), which provides `adb`. **Android Studio is not required.**
+- A phone that can be factory-reset. The tested target is Samsung Galaxy A3 (2016), Android 7.
+
+### Steps
+
+1. **Factory-reset the phone.** During its first setup, do not add a Google account and do not complete normal user setup before enrollment.
+2. If the setup screens allow it, enable **Developer options** and **USB debugging**.
+3. On the Windows computer, unzip Platform Tools and copy `ReachKids-0.1.0-phase1-debug.apk` into that folder.
+4. Connect the phone by USB. Open PowerShell in the Platform Tools folder, approve the USB-debugging prompt on the phone, then run:
+
+   ```powershell
+   .\adb.exe devices
+   .\adb.exe install ReachKids-0.1.0-phase1-debug.apk
+   .\adb.exe shell dpm set-device-owner com.reachkids.app/.ReachKidsDeviceAdminReceiver
+   ```
+
+5. Android should report that the device owner was set successfully. If the last command says the device has already been provisioned, factory-reset it again and repeat from step 1; do not attempt to bypass that Android restriction.
+6. Open **Reach Kids**, create the parent PIN, configure contacts and SMS, then open **Parent area** and select **Enable kiosk mode**.
+7. Test Home, Recents, phone calls, messages, reboot behavior, and Parent-area access before giving the phone to a child.
+
+Without device-owner enrollment, the app itself still works, but it cannot securely keep the child inside Reach Kids. Manual Android screen pinning can be used for supervised testing only.
 
 ## What it is for
 
@@ -145,7 +187,7 @@ For the full, target-device-specific procedure, prerequisites, and acceptance ch
 
 - [PROVISIONING.md](PROVISIONING.md)
 
-The essential development command is:
+The essential enrollment command is:
 
 ```bash
 adb shell dpm set-device-owner com.reachkids.app/.ReachKidsDeviceAdminReceiver
