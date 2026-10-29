@@ -2,6 +2,8 @@
 
 Reach Kids is a deliberately simple launcher-style app for Android phones. It is designed to also run on older Android 5 phones. So you can give your old Android phone to your child and she/he will be reachable via calls and SMSes but without any access to the other smart phone features and camera. The app runs on kiosk mode which locks the phone for the app use only. This is especially useful as not to disturb school activities. The parent can configure contacts and device settings while the child gets a large, restricted home screen for calling, SMS, and viewing calendar entries.
 
+![Reach Kids app screenshot](Screenshot.png)
+
 The app uses the phone's existing **Contacts** and **Calendar** providers. It does not maintain a second copy of contacts or calendar events.
 
 > **Important:** Installing the APK by itself does not lock down an Android phone. Full kiosk mode requires device-owner provisioning on a factory-reset device. The simplified setup steps below use a Windows computer and Android Platform Tools; Android Studio is not required.
