@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 /** Parent-only system-contact administration. No contact data is copied into app storage. */
 public final class ContactsActivity extends Activity {
     private static final int REQUEST_SMS_PERMISSIONS = 300;
+    private static final int REQUEST_LOCATION_PERMISSIONS = 301;
     private ParentPreferences preferences;
     private DevicePolicyController devicePolicyController;
     private ContactsRepository contactsRepository;
@@ -116,9 +117,22 @@ public final class ContactsActivity extends Activity {
         exitKioskButton.setOnClickListener(view -> exitKiosk(kioskButton, exitKioskButton, deviceStatus));
         root.addView(exitKioskButton, fullWidthParams(0, dp(8)));
 
-        Button addButton = button("Add system contact");
+        Button addButton = button("Add new contact");
         addButton.setOnClickListener(view -> showContactEditor(null));
         root.addView(addButton, fullWidthParams(0, dp(8)));
+
+        Button defaultContactButton = button("Set default contact");
+        defaultContactButton.setOnClickListener(view -> showDefaultContactSetup());
+        root.addView(defaultContactButton, fullWidthParams(0, dp(8)));
+
+        TextView locationStatus = new TextView(this);
+        locationStatus.setText(locationStatusText());
+        locationStatus.setTextSize(16);
+        root.addView(locationStatus, fullWidthParams(0, dp(8)));
+
+        Button locationButton = button("Set up location access (parent only)");
+        locationButton.setOnClickListener(view -> requestLocationSetup());
+        root.addView(locationButton, fullWidthParams(0, dp(8)));
 
         Button quickCallOneButton = button(quickCallSetupLabel(1));
         quickCallOneButton.setOnClickListener(view -> showQuickCallSetup(1));
@@ -299,6 +313,61 @@ public final class ContactsActivity extends Activity {
             this.start = start;
             this.end = end;
         }
+    }
+
+    private void showDefaultContactSetup() {
+        if (!hasContactPermissions()) {
+            showToast("Contacts permission is required to set a default contact.");
+            return;
+        }
+        showToast("Loading contacts...");
+        backgroundExecutor.execute(() -> {
+            List<SystemContact> contacts = contactsRepository.loadPhoneContacts();
+            runOnUiThread(() -> showDefaultContactSetupDialog(contacts));
+        });
+    }
+
+    private void showDefaultContactSetupDialog(List<SystemContact> contacts) {
+        if (isFinishing() || !ParentSession.isOpen()) {
+            return;
+        }
+        if (contacts.isEmpty()) {
+            showToast("Add a contact before setting a default contact.");
+            return;
+        }
+
+        String[] contactLabels = new String[contacts.size()];
+        int selectedIndex = -1;
+        long selectedPhoneDataId = preferences.getDefaultContactPhoneDataId();
+        for (int index = 0; index < contacts.size(); index++) {
+            SystemContact contact = contacts.get(index);
+            contactLabels[index] = contact.displayName + "\n" + contact.phoneNumber;
+            if (contact.phoneDataId == selectedPhoneDataId) {
+                selectedIndex = index;
+            }
+        }
+
+        final int[] chosenIndex = {selectedIndex};
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Set default contact")
+                .setSingleChoiceItems(contactLabels, selectedIndex,
+                        (ignored, which) -> chosenIndex[0] = which)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", null)
+                .create();
+        dialog.setOnShowListener(ignored ->
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+                    if (chosenIndex[0] < 0) {
+                        showToast("Choose a default contact.");
+                        return;
+                    }
+                    SystemContact selectedContact = contacts.get(chosenIndex[0]);
+                    preferences.setDefaultContactPhoneDataId(selectedContact.phoneDataId);
+                    ParentSession.touch();
+                    dialog.dismiss();
+                    showToast(selectedContact.displayName + " is now the default contact.");
+                }));
+        dialog.show();
     }
 
     private void showQuickCallSetup(int slot) {
@@ -503,6 +572,12 @@ public final class ContactsActivity extends Activity {
             } else {
                 showToast("SMS permissions are required for Reach Kids messaging.");
             }
+        } else if (requestCode == REQUEST_LOCATION_PERMISSIONS) {
+            if (hasLocationPermission()) {
+                enableLocationServices();
+            } else {
+                showToast("Location permission is required to answer a #Location request.");
+            }
         }
     }
 
@@ -514,6 +589,63 @@ public final class ContactsActivity extends Activity {
         Intent intent = new Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT);
         intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, getPackageName());
         startActivity(intent);
+    }
+
+    /**
+     * Asks Android for the location access that the {@code #Location} command needs. The
+     * request is made here in the parent area so the child never sees a system prompt.
+     */
+    private void requestLocationSetup() {
+        if (!preferences.hasDefaultContact()) {
+            showToast("Set a default contact before setting up location access.");
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) {
+            showToast("Location access is granted automatically on this Android version.");
+            return;
+        }
+        if (!hasLocationPermission()) {
+            requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            }, REQUEST_LOCATION_PERMISSIONS);
+            return;
+        }
+        enableLocationServices();
+    }
+
+    /** Turns the phone-wide location setting on when the device owner role allows it. */
+    private void enableLocationServices() {
+        if (!devicePolicyController.canEnableLocation()) {
+            showToast("Location permission is granted. The GPS switch stays under Android control.");
+            return;
+        }
+        devicePolicyController.enableLocation();
+        showToast("Location access is ready.");
+    }
+
+    private String locationStatusText() {
+        if (!preferences.hasDefaultContact()) {
+            return "Location replies need a default contact. Set one first.";
+        }
+        if (!hasLocationPermission()) {
+            return "Reach Kids cannot read the phone location yet.";
+        }
+        LocationProviderController locationController = new LocationProviderController(this);
+        if (!locationController.isGpsEnabled()) {
+            return "Location access is granted, but the phone GPS switch is off.";
+        }
+        return "Reach Kids can read the phone location for a #Location request.";
+    }
+
+    private boolean hasLocationPermission() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) {
+            return true;
+        }
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean hasPermission(String permission) {

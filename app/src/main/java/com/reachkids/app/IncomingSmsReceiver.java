@@ -17,9 +17,38 @@ public final class IncomingSmsReceiver extends BroadcastReceiver {
         for (SmsMessage message : Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
             String address = message.getDisplayOriginatingAddress();
             String body = message.getDisplayMessageBody();
-            if (address != null && body != null) {
-                database.insertIncoming(address, body, message.getTimestampMillis());
+            if (address == null || body == null) {
+                continue;
             }
+            database.insertIncoming(address, body, message.getTimestampMillis());
+            if (LocationRequestCommand.isLocationRequest(body)) {
+                handleLocationRequest(context, address);
+            }
+        }
+    }
+
+    /**
+     * Answers a location request only when it comes from the parent-selected default contact,
+     * so no other sender can make the phone reveal its position.
+     */
+    private void handleLocationRequest(Context context, String address) {
+        try {
+            ParentPreferences preferences = new ParentPreferences(context);
+            if (!preferences.hasDefaultContact()) {
+                return;
+            }
+            SystemContact defaultContact = new ContactsRepository(context)
+                    .loadPhoneContact(preferences.getDefaultContactPhoneDataId());
+            if (defaultContact == null) {
+                return;
+            }
+            if (!SmsAddressValidator.addressesMatch(defaultContact.phoneNumber, address)) {
+                return;
+            }
+            LocationRequestService.start(context, defaultContact.phoneNumber,
+                    defaultContact.displayName);
+        } catch (RuntimeException exception) {
+            // A failed lookup must never take the whole SMS delivery down.
         }
     }
 }

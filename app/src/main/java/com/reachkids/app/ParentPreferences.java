@@ -24,6 +24,7 @@ public final class ParentPreferences {
     private static final String KEY_QUICK_CALL_1_PHONE_DATA_ID = "quick_call_1_phone_data_id";
     private static final String KEY_QUICK_CALL_2_LABEL = "quick_call_2_label";
     private static final String KEY_QUICK_CALL_2_PHONE_DATA_ID = "quick_call_2_phone_data_id";
+    private static final String KEY_DEFAULT_CONTACT_PHONE_DATA_ID = "default_contact_phone_data_id";
 
     private final SharedPreferences preferences;
 
@@ -183,6 +184,24 @@ public final class ParentPreferences {
                 .remove(quickCallLabelKey(slot))
                 .remove(quickCallPhoneDataIdKey(slot))
                 .apply();
+    }
+
+    /** Stores only the selected system Contacts phone-row ID. */
+    public void setDefaultContactPhoneDataId(long phoneDataId) {
+        if (phoneDataId < 0L) {
+            throw new IllegalArgumentException("A system contact is required");
+        }
+        preferences.edit()
+                .putLong(KEY_DEFAULT_CONTACT_PHONE_DATA_ID, phoneDataId)
+                .apply();
+    }
+
+    public boolean hasDefaultContact() {
+        return preferences.contains(KEY_DEFAULT_CONTACT_PHONE_DATA_ID);
+    }
+
+    public long getDefaultContactPhoneDataId() {
+        return preferences.getLong(KEY_DEFAULT_CONTACT_PHONE_DATA_ID, -1L);
     }
 
     private String quickCallLabelKey(int slot) {

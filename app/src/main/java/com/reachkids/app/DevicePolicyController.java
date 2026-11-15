@@ -48,6 +48,30 @@ public final class DevicePolicyController {
         devicePolicyManager.setCameraDisabled(adminComponent, disabled);
     }
 
+    /**
+     * Switches the phone-wide location setting back on. Only the device owner may do this, so
+     * the call is skipped on phones that are not enrolled. Android 7 has no such API, so there
+     * the GPS provider is switched on by requesting location updates instead.
+     */
+    public void enableLocation() {
+        if (!isDeviceOwner() || devicePolicyManager == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            return;
+        }
+        try {
+            devicePolicyManager.setLocationEnabled(adminComponent, true);
+        } catch (SecurityException | IllegalStateException ignored) {
+            // The phone is not permitted to change the location setting.
+        }
+    }
+
+    /** True when this app is allowed to switch the phone-wide location setting on. */
+    public boolean canEnableLocation() {
+        return isDeviceOwner() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
+    }
+
     public void clearKioskPolicy() {
         requireDeviceOwner();
         devicePolicyManager.clearPackagePersistentPreferredActivities(adminComponent,

@@ -33,7 +33,9 @@ This procedure is for the target **Samsung Galaxy A3 (2016) on Android 7**. It i
 5. Confirm that Android reports success. If this command fails because the device already has users/accounts or has progressed too far through setup, factory-reset again and repeat the procedure. Do not attempt to work around the device-owner restriction on a phone intended for child use.
 6. Launch Reach Kids, create the parent PIN, grant Contacts permission, open **Parent area**, and verify that the device diagnostic says device owner is active.
 7. In **Parent area**, select **Set up SMS (parent only)**. Grant the requested SMS permissions, then confirm Android's default-SMS-app prompt for Reach Kids.
-8. Configure contacts and the camera preference, then select **Enable kiosk mode**.
+8. In **Parent area**, select **Set default contact** and choose the contact that is allowed to ask for the phone location.
+9. In **Parent area**, select **Set up location access (parent only)** and grant the location permission. Confirm that the phone-wide location setting is on; Reach Kids can switch it on itself only when the phone is enrolled as device owner on Android 9 or later.
+10. Configure contacts and the camera preference, then select **Enable kiosk mode**.
 
 ## Required test checklist
 
@@ -51,6 +53,8 @@ Run and record every test on the target handset before relying on it:
 - An incoming SMS from an unknown number is readable, but its composer and send button are disabled until a parent adds that number to system Contacts.
 - Verify short and multipart SMS sending, failed send/no-signal handling, delivery reports where the carrier supports them, SIM removal, and reboot behavior.
 - Verify MMS, attachment, and group-message attempts show an unsupported state rather than a compose flow.
+- Verify a `#Location` request from the default contact switches the GPS on, returns the phone position by SMS, and that a `#Location` request from any other sender is ignored.
+- Verify the location reply when the phone-wide location setting is off, when no fix is available, and when the cached fix is reported.
 - While lock task is active, test the Samsung phone UI carefully: verify whether the child can reach keypad, recents, contacts, or other apps from the system call screen. Do not rely on this call flow until the result is acceptable on the exact handset firmware.
 - **Exit kiosk mode (parent only)** stops lock task and removes Reach Kids as the persistent Home application.
 - Re-enabling kiosk restores the same restrictions.

@@ -2,7 +2,7 @@
 
 Reach Kids is a deliberately simple launcher-style app for Android phones. It is designed to also run on older Android 5 phones. So you can give your old Android phone to your child and she/he will be reachable via calls and SMSes but without any access to the other smart phone features and camera. The app runs on kiosk mode which locks the phone for the app use only. This is especially useful as not to disturb school activities. The parent can configure contacts and device settings while the child gets a large, restricted home screen for calling, SMS, and viewing calendar entries.
 
-![Reach Kids app screenshot](Screenshot.png)
+<img src="Screenshot.png" width="300" alt="Reach Kids app screenshot">
 
 The app uses the phone's existing **Contacts** and **Calendar** providers. It does not maintain a second copy of contacts or calendar events.
 
@@ -77,9 +77,31 @@ After entering the parent PIN, a parent can:
 - Configure the two quick-call buttons by choosing an existing phone-contact number and providing a label.
 - Change the parent PIN. The current PIN, a new PIN of at least four digits, and confirmation are required.
 - Set up Reach Kids as the default SMS app and grant its requested SMS permissions.
+- Set up location access so the phone can answer a `#Location` request from the default contact.
 - Enable or exit device-owner kiosk mode when the device has been provisioned correctly.
 - Choose whether the camera is disabled while device policy is active.
 - Enable **Ringer Muted**. This sets the call-ringer volume to zero and restores the prior ring volume when unticked; alarms and media volume are not changed.
+
+### Location requests
+
+When the default contact texts `#Location`, Reach Kids switches on the phone's GPS, reads the
+current position, and replies by SMS with the coordinates, the accuracy, the fix time, and a
+map link.
+
+- The request is only answered when it comes from the contact selected as the **default contact**.
+  A `#Location` message from any other sender is treated as an ordinary message.
+- Only the exact command `#Location` is answered, so normal conversations never trigger a reply.
+- The reply is sent to the default contact's phone number and also appears in the Reach Kids
+  inbox, so the parent can read it on the phone as well.
+- If Android cannot supply a fresh fix, Reach Kids sends the last known position and clearly
+  marks it as a cached fix, or explains why no position was available.
+- The lookup runs as a foreground service, so a short notification appears while the phone is
+  finding the position.
+
+Turning the GPS on needs a location permission that a parent grants from the parent area, and
+it needs the phone-wide location setting to be on. Reach Kids turns that setting on itself when
+the phone is enrolled as a device owner on Android 9 or later. On older releases the GPS switch
+stays under Android's control, so make sure it is on.
 
 ### SMS behavior
 
@@ -116,8 +138,10 @@ The active call screen is still provided by the device firmware. Test the exact 
 4. Add the phone contacts the child may call or message.
 5. Configure quick-call buttons if wanted.
 6. Select **Set up SMS (parent only)**, grant the permissions Android requests, and accept the default-SMS-app prompt.
-7. Optionally configure **Ringer Muted** and the camera policy.
-8. If the phone has been provisioned as device owner, enable kiosk mode from the parent area.
+7. Select **Set default contact** and choose the contact that may ask for the phone location.
+8. Select **Set up location access (parent only)** and grant the location permission Android requests.
+9. Optionally configure **Ringer Muted** and the camera policy.
+10. If the phone has been provisioned as device owner, enable kiosk mode from the parent area.
 
 ### Child use
 
@@ -205,6 +229,8 @@ On the exact target handset and carrier/SIM, verify:
 - Contact-only calling and quick-call buttons.
 - SMS setup as the default SMS app; incoming, outgoing, multipart, failed/no-signal, and delivery-report behavior.
 - One sent/failed popup per outgoing SMS and no duplicate incoming entries.
+- A `#Location` request from the default contact returns the phone position by SMS, and a
+  `#Location` request from any other sender does not.
 - Read-only calendar display and calendar permission behavior.
 - Ringer mute and restoration behavior.
 - Kiosk Home/Recents restrictions, reboot behavior, camera policy, exit/re-enable flow, and Samsung call-screen handoff.

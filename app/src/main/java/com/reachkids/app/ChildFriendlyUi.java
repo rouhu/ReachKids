@@ -73,6 +73,9 @@ public final class ChildFriendlyUi {
         if (label.contains("CALENDAR")) {
             return R.drawable.ic_calendar;
         }
+        if (label.contains("LOCATION")) {
+            return R.drawable.ic_location;
+        }
         if (label.contains("CALL") || label.contains("CONTACT")) {
             return R.drawable.ic_phone;
         }
