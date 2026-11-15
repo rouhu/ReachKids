@@ -17,7 +17,7 @@ The current built APK is available in this repository:
 This is a **debug/test APK**, not a signed production release. Install it only on a device you control and test it thoroughly before child use. Its SHA-256 checksum is:
 
 ```text
-C26B8E252C48072540CF4A9CAE1D262F507161E95AABEBFB921AD4E24EE3FC9D
+671F1EEDD8D5B3A70EADE88FC8A7F4AAB67D9AFAC1B732A7D0F18F66E5117962
 ```
 
 ## Simple kiosk setup for a dedicated child phone
