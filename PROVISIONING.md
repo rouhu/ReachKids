@@ -36,6 +36,15 @@ This procedure is for the target **Samsung Galaxy A3 (2016) on Android 7**. It i
 8. In **Parent area**, select **Set default contact** and choose the contact that is allowed to ask for the phone location.
 9. In **Parent area**, select **Set up location access (parent only)** and grant the location permission. Confirm that the phone-wide location setting is on; Reach Kids can switch it on itself only when the phone is enrolled as device owner on Android 9 or later.
 10. Configure contacts and the camera preference, then select **Enable kiosk mode**.
+11. Disconnect the USB cable and turn off the developer access on the phone:
+    - **Settings → Developer options → USB debugging**: off.
+    - **Settings → Developer options → Revoke USB debugging authorizations**: tap it, so the setup computer is no longer trusted.
+    - **Settings → Developer options**: turn the master switch off. On Android 7 the screen is then hidden from normal use.
+    - On the computer, confirm `adb devices` no longer lists the phone.
+
+    Do this only after the enrollment commands above have succeeded. The device-owner enrollment stays active when USB debugging is switched off, so kiosk mode, the camera policy, and the persistent Home setting keep working. Keep the APK and these instructions, because the phone will need re-provisioning after a factory reset.
+
+    Note that this raises the effort needed to bypass kiosk mode; it does not make the phone tamper-proof, since a factory reset or a recovery-mode boot can still restore developer access.
 
 ## Required test checklist
 
@@ -55,9 +64,11 @@ Run and record every test on the target handset before relying on it:
 - Verify MMS, attachment, and group-message attempts show an unsupported state rather than a compose flow.
 - Verify a `#Location` request from the default contact switches the GPS on, returns the phone position by SMS, and that a `#Location` request from any other sender is ignored.
 - Verify the location reply when the phone-wide location setting is off, when no fix is available, and when the cached fix is reported.
+- Verify a `#ResetPin` message from the default contact lets the PIN `1234` open the parent area, that the same message from any other sender does nothing, and that the temporary PIN stops working after it is used once and when it expires after five minutes.
 - While lock task is active, test the Samsung phone UI carefully: verify whether the child can reach keypad, recents, contacts, or other apps from the system call screen. Do not rely on this call flow until the result is acceptable on the exact handset firmware.
 - **Exit kiosk mode (parent only)** stops lock task and removes Reach Kids as the persistent Home application.
 - Re-enabling kiosk restores the same restrictions.
+- Verify that after USB debugging and Developer options are switched off, the phone no longer appears in `adb devices`, that kiosk mode still starts on reboot, and that Reach Kids still receives SMS.
 - Recovery-mode and factory-reset behavior are documented as out-of-app escape/recovery paths.
 
 ## Current limitations

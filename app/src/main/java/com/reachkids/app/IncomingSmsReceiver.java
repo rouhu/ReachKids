@@ -23,6 +23,8 @@ public final class IncomingSmsReceiver extends BroadcastReceiver {
             database.insertIncoming(address, body, message.getTimestampMillis());
             if (LocationRequestCommand.isLocationRequest(body)) {
                 handleLocationRequest(context, address);
+            } else if (PinResetCommand.isPinResetRequest(body)) {
+                handlePinResetRequest(context, address);
             }
         }
     }
@@ -32,23 +34,45 @@ public final class IncomingSmsReceiver extends BroadcastReceiver {
      * so no other sender can make the phone reveal its position.
      */
     private void handleLocationRequest(Context context, String address) {
+        SystemContact defaultContact = findDefaultContact(context, address);
+        if (defaultContact == null) {
+            return;
+        }
+        LocationRequestService.start(context, defaultContact.phoneNumber,
+                defaultContact.displayName);
+    }
+
+    /**
+     * Opens the temporary parent PIN only for the default contact, so no other sender can
+     * weaken the protection of the parent area.
+     */
+    private void handlePinResetRequest(Context context, String address) {
+        SystemContact defaultContact = findDefaultContact(context, address);
+        if (defaultContact == null) {
+            return;
+        }
+        TemporaryPinOverride.activate(context);
+    }
+
+    /** The default contact when it is set and the message came from that number. */
+    private SystemContact findDefaultContact(Context context, String address) {
         try {
             ParentPreferences preferences = new ParentPreferences(context);
             if (!preferences.hasDefaultContact()) {
-                return;
+                return null;
             }
             SystemContact defaultContact = new ContactsRepository(context)
                     .loadPhoneContact(preferences.getDefaultContactPhoneDataId());
             if (defaultContact == null) {
-                return;
+                return null;
             }
             if (!SmsAddressValidator.addressesMatch(defaultContact.phoneNumber, address)) {
-                return;
+                return null;
             }
-            LocationRequestService.start(context, defaultContact.phoneNumber,
-                    defaultContact.displayName);
+            return defaultContact;
         } catch (RuntimeException exception) {
             // A failed lookup must never take the whole SMS delivery down.
+            return null;
         }
     }
 }

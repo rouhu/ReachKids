@@ -90,6 +90,11 @@ public final class ContactsActivity extends Activity {
         deviceStatus.setTextSize(16);
         root.addView(deviceStatus, fullWidthParams(0, dp(10)));
 
+        TextView versionStatus = new TextView(this);
+        versionStatus.setText(AppVersionInfo.read(this).summary());
+        versionStatus.setTextSize(16);
+        root.addView(versionStatus, fullWidthParams(0, dp(10)));
+
         TextView smsStatus = new TextView(this);
         smsStatus.setText(MessagesActivity.isDefaultSmsApp(this)
                 ? "Reach Kids is the default SMS app."
@@ -125,6 +130,15 @@ public final class ContactsActivity extends Activity {
         defaultContactButton.setOnClickListener(view -> showDefaultContactSetup());
         root.addView(defaultContactButton, fullWidthParams(0, dp(8)));
 
+        if (DefaultContactReminder.isNeeded(preferences.hasDefaultContact())) {
+            TextView defaultContactReminder = new TextView(this);
+            defaultContactReminder.setText(DefaultContactReminder.text());
+            defaultContactReminder.setTextSize(17);
+            defaultContactReminder.setTextColor(getResources().getColor(R.color.warningRed));
+            defaultContactReminder.setTypeface(null, android.graphics.Typeface.BOLD);
+            root.addView(defaultContactReminder, fullWidthParams(0, dp(10)));
+        }
+
         TextView locationStatus = new TextView(this);
         locationStatus.setText(locationStatusText());
         locationStatus.setTextSize(16);
@@ -145,6 +159,23 @@ public final class ContactsActivity extends Activity {
         Button changePinButton = button("Change parent PIN");
         changePinButton.setOnClickListener(view -> showChangePinDialog());
         root.addView(changePinButton, fullWidthParams(0, dp(8)));
+
+        if (TemporaryPinOverride.isActive(preferences, System.currentTimeMillis())) {
+            TextView temporaryPinStatus = new TextView(this);
+            temporaryPinStatus.setText("A temporary PIN is active. It stops working when it "
+                    + "expires or when you cancel it.");
+            temporaryPinStatus.setTextSize(16);
+            root.addView(temporaryPinStatus, fullWidthParams(0, dp(8)));
+
+            Button cancelTemporaryPinButton = button("Cancel temporary PIN");
+            cancelTemporaryPinButton.setOnClickListener(view -> {
+                TemporaryPinOverride.clear(preferences);
+                ParentSession.touch();
+                showToast("The temporary PIN is no longer active.");
+                showParentScreen();
+            });
+            root.addView(cancelTemporaryPinButton, fullWidthParams(0, dp(8)));
+        }
 
         CheckBox cameraCheckBox = new CheckBox(this);
         cameraCheckBox.setText("Disable camera when device policy is enabled");

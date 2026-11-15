@@ -394,7 +394,7 @@ public final class MainActivity extends Activity {
 
     private void showParentPinScreen() {
         childHomeVisible = false;
-        if (parentPreferences.isPinEntryLocked()) {
+        if (parentPreferences.isPinEntryLocked() && !hasActiveTemporaryPin()) {
             showToast("Try again in " + formatRemainingLockTime() + ".");
             return;
         }
@@ -402,9 +402,14 @@ public final class MainActivity extends Activity {
         final EditText pin = pinField("Parent PIN");
         screen.addView(pin, fullWidthParams(0, dp(20)));
 
+        TextView temporaryPinNotice = temporaryPinNotice();
+        if (temporaryPinNotice != null) {
+            screen.addView(temporaryPinNotice, fullWidthParams(0, dp(8)));
+        }
+
         Button unlockButton = button("Unlock parent area");
         unlockButton.setOnClickListener(view -> {
-            if (parentPreferences.isPinEntryLocked()) {
+            if (parentPreferences.isPinEntryLocked() && !hasActiveTemporaryPin()) {
                 showToast("Try again in " + formatRemainingLockTime() + ".");
                 pin.setText("");
                 return;
@@ -422,7 +427,11 @@ public final class MainActivity extends Activity {
             unlockButton.setEnabled(false);
             unlockButton.setText("Unlocking...");
             backgroundExecutor.execute(() -> {
-                boolean verified = parentPreferences.verifyPin(candidate);
+                long now = System.currentTimeMillis();
+                boolean realPinVerified = parentPreferences.verifyPin(candidate);
+                final boolean usedTemporaryPin = !realPinVerified
+                        && TemporaryPinOverride.matches(parentPreferences, candidate, now);
+                final boolean verified = realPinVerified || usedTemporaryPin;
                 java.util.Arrays.fill(candidate, '\0');
                 runOnUiThread(() -> {
                     if (isFinishing()) {
@@ -430,6 +439,10 @@ public final class MainActivity extends Activity {
                     }
                     if (verified) {
                         parentPreferences.clearFailedPinAttempts();
+                        if (usedTemporaryPin) {
+                            // The fallback PIN is single use, so it cannot be passed around.
+                            TemporaryPinOverride.clear(parentPreferences);
+                        }
                         ParentSession.open();
                         startActivity(new Intent(this, ContactsActivity.class));
                         return;
@@ -449,6 +462,24 @@ public final class MainActivity extends Activity {
         Button cancelButton = button("Cancel");
         cancelButton.setOnClickListener(view -> showChildHome());
         screen.addView(cancelButton, fullWidthParams(0, 0));
+    }
+
+    /** Shows the temporary-PIN notice when the default contact has activated one. */
+    private TextView temporaryPinNotice() {
+        long now = System.currentTimeMillis();
+        if (!TemporaryPinOverride.isActive(parentPreferences, now)) {
+            return null;
+        }
+        TextView notice = new TextView(this);
+        notice.setText("Temporary PIN " + TemporaryPinOverride.FALLBACK_PIN + " is active for "
+                + TemporaryPinOverride.remainingText(parentPreferences, now) + ".");
+        notice.setTextSize(16);
+        return notice;
+    }
+
+    /** True while the temporary PIN can still be used to open the parent area. */
+    private boolean hasActiveTemporaryPin() {
+        return TemporaryPinOverride.isActive(parentPreferences, System.currentTimeMillis());
     }
 
     private EditText pinField(String hint) {

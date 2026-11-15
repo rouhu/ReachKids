@@ -25,6 +25,9 @@ public final class ParentPreferences {
     private static final String KEY_QUICK_CALL_2_LABEL = "quick_call_2_label";
     private static final String KEY_QUICK_CALL_2_PHONE_DATA_ID = "quick_call_2_phone_data_id";
     private static final String KEY_DEFAULT_CONTACT_PHONE_DATA_ID = "default_contact_phone_data_id";
+    private static final String KEY_TEMPORARY_PIN_SALT = "temporary_pin_salt";
+    private static final String KEY_TEMPORARY_PIN_HASH = "temporary_pin_hash";
+    private static final String KEY_TEMPORARY_PIN_EXPIRES_AT = "temporary_pin_expires_at";
 
     private final SharedPreferences preferences;
 
@@ -80,6 +83,47 @@ public final class ParentPreferences {
         preferences.edit()
                 .putInt(KEY_FAILED_ATTEMPTS, 0)
                 .putLong(KEY_LOCKED_UNTIL, 0L)
+                .apply();
+    }
+
+    /** Stores a salted verifier for the short-lived fallback PIN. */
+    public void saveTemporaryPin(byte[] salt, byte[] hash, long expiresAt) {
+        preferences.edit()
+                .putString(KEY_TEMPORARY_PIN_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+                .putString(KEY_TEMPORARY_PIN_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+                .putLong(KEY_TEMPORARY_PIN_EXPIRES_AT, expiresAt)
+                .apply();
+    }
+
+    public boolean hasTemporaryPin() {
+        return preferences.contains(KEY_TEMPORARY_PIN_SALT)
+                && preferences.contains(KEY_TEMPORARY_PIN_HASH)
+                && preferences.contains(KEY_TEMPORARY_PIN_EXPIRES_AT);
+    }
+
+    /** The moment the fallback PIN stops working, in milliseconds since the epoch. */
+    public long temporaryPinExpiresAt() {
+        return preferences.getLong(KEY_TEMPORARY_PIN_EXPIRES_AT, 0L);
+    }
+
+    /** True when the candidate matches the stored fallback PIN verifier. */
+    public boolean verifyTemporaryPin(char[] candidate) {
+        String savedSalt = preferences.getString(KEY_TEMPORARY_PIN_SALT, null);
+        String savedHash = preferences.getString(KEY_TEMPORARY_PIN_HASH, null);
+        if (savedSalt == null || savedHash == null || candidate == null) {
+            return false;
+        }
+        return PinSecurity.verify(candidate,
+                Base64.decode(savedSalt, Base64.NO_WRAP),
+                Base64.decode(savedHash, Base64.NO_WRAP));
+    }
+
+    /** Removes the fallback PIN so it can no longer be used. */
+    public void clearTemporaryPin() {
+        preferences.edit()
+                .remove(KEY_TEMPORARY_PIN_SALT)
+                .remove(KEY_TEMPORARY_PIN_HASH)
+                .remove(KEY_TEMPORARY_PIN_EXPIRES_AT)
                 .apply();
     }
 

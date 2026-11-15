@@ -12,4 +12,6 @@
     <color name="buttonAmber">#C98B15</color>
     <color name="buttonText">#3D2C00</color>
     <color name="cardBlue">#F6FCFF</color>
+    <!-- Used for reminders that a parent must act on. -->
+    <color name="warningRed">#C62828</color>
 </resources>

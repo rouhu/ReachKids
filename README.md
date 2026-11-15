@@ -17,7 +17,7 @@ The current built APK is available in this repository:
 This is a **debug/test APK**, not a signed production release. Install it only on a device you control and test it thoroughly before child use. Its SHA-256 checksum is:
 
 ```text
-671F1EEDD8D5B3A70EADE88FC8A7F4AAB67D9AFAC1B732A7D0F18F66E5117962
+FC16ABA960F0D605B4146720FA8299A243BD40601624ED875261B0D310FB9F28
 ```
 
 ## Simple kiosk setup for a dedicated child phone
@@ -46,9 +46,32 @@ Use this procedure if you want Reach Kids to enforce kiosk mode. It is intended 
 
 5. Android should report that the device owner was set successfully. If the last command says the device has already been provisioned, factory-reset it again and repeat from step 1; do not attempt to bypass that Android restriction.
 6. Open **Reach Kids**, create the parent PIN, configure contacts and SMS, then open **Parent area** and select **Enable kiosk mode**.
-7. Test Home, Recents, phone calls, messages, reboot behavior, and Parent-area access before giving the phone to a child.
+7. **Turn off Developer options and USB debugging** (see the next section). Do this before the phone goes to the child.
+8. Test Home, Recents, phone calls, messages, reboot behavior, and Parent-area access before giving the phone to a child.
 
 Without device-owner enrollment, the app itself still works, but it cannot securely keep the child inside Reach Kids. Manual Android screen pinning can be used for supervised testing only.
+
+## Turn off Developer options and USB debugging
+
+Do this **after** the phone-owner enrollment commands have finished, and **before** the phone is handed to a child. Leaving these on would let anyone who gets the phone and a USB cable undo the kiosk setup.
+
+On the phone:
+
+1. Open **Settings**, then **Developer options**.
+2. Turn off **USB debugging**.
+3. Tap **Revoke USB debugging authorizations** if that option is shown. This removes the computer that was used for the setup.
+4. Scroll to the top of the **Developer options** screen and turn the master **Developer options** switch off.
+5. Confirm the phone no longer appears in `adb devices` on the computer.
+
+On Android 7 the developer options are hidden by default once they are switched off. To reach them again later, tap **Settings → About phone → Build number** seven times.
+
+### Why this matters
+
+- **USB debugging** lets a computer issue `adb` commands on the phone, including uninstalling Reach Kids, adding another app, or removing the device-owner enrollment. With the phone in kiosk mode this is the simplest way to bypass the restrictions.
+- **Developer options** in general expose debugging and policy controls that should not be reachable on a child's phone.
+- The device-owner enrollment itself stays active after USB debugging is switched off. Kiosk mode, the camera policy, and the persistent Home setting keep working, and Reach Kids continues to work normally.
+
+> **Caveat:** switching these off makes the *setup* harder to reach again, not impossible. A factory reset, a recovery-mode boot, or a firmware-level change can still restore developer access, so this step raises the effort required to bypass kiosk mode rather than removing the possibility. Keep the APK and the enrollment instructions somewhere safe, so the phone can be re-provisioned later if it must be reset.
 
 ## What it is for
 
@@ -103,6 +126,24 @@ it needs the phone-wide location setting to be on. Reach Kids turns that setting
 the phone is enrolled as a device owner on Android 9 or later. On older releases the GPS switch
 stays under Android's control, so make sure it is on.
 
+### Temporary PIN recovery
+
+If the parent forgets the parent PIN, the default contact can text `#ResetPin` to switch on a
+temporary PIN for a few minutes.
+
+- The command is only accepted from the contact selected as the **default contact**.
+- While it is active, the PIN `1234` opens the parent area in addition to the real parent PIN.
+- The temporary PIN stops working when it expires after five minutes, as soon as it has been
+  used once, or when a parent cancels it from the parent area.
+- The real parent PIN is never changed or disabled by this command.
+- The temporary PIN is stored as a salted verifier, the same way the real PIN is, and never as
+  plain text.
+
+> **Note:** this is a recovery path, not a security feature. It only helps when the default
+> contact still has access to the phone's SMS. Anyone who can send that one message can reach
+> the parent area during the window, so change the parent PIN afterwards if the phone may have
+> been out of your hands.
+
 ### SMS behavior
 
 - SMS only: incoming messages, thread list, per-number conversations, and outgoing messages are stored locally by Reach Kids.
@@ -125,7 +166,7 @@ The active call screen is still provided by the device firmware. Test the exact 
 - This is not an emergency-dialer replacement and does not implement emergency-call workflows.
 - Calendar is read-only in Reach Kids. Events are added and changed in the phone's normal calendar app/account.
 - Reach Kids is not physically tamper-proof. Recovery mode, factory reset, SIM removal, and device firmware behavior are outside its control.
-- A forgotten parent PIN has no recovery flow. The supported recovery path is factory reset and reprovisioning of the managed device.
+- A forgotten parent PIN can be recovered by texting `#ResetPin` from the default contact, which opens the parent area with a temporary PIN for five minutes. If the default contact is also unreachable, the remaining recovery path is factory reset and reprovisioning of the managed device.
 - Kiosk behavior and Samsung system-call UI behavior must be validated on the actual target device before real-world use.
 
 ## User guide
@@ -204,6 +245,8 @@ app/build/outputs/apk/debug/app-debug.apk
 4. Open **Reach Kids** on the phone and complete the first-run parent PIN setup if needed.
 
 This installation method is appropriate for feature testing only. It does **not** make the app the device owner or prevent normal access to Android settings and other apps.
+
+> If the phone is going to a child afterwards, switch **USB debugging** and **Developer options** back off, as described in [Turn off Developer options and USB debugging](#turn-off-developer-options-and-usb-debugging).
 
 ## Device-owner kiosk provisioning
 
